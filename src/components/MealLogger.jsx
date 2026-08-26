@@ -87,7 +87,7 @@ const MealLogger = () => {
             exit={{ opacity: 0, scale: 0.95 }}
             className="card glass-panel"
             style={{ 
-              borderLeft: \`4px solid \${nudge.type === 'warning' ? 'var(--warning)' : 'var(--success)'}\`,
+              borderLeft: `4px solid ${nudge.type === 'warning' ? 'var(--warning)' : 'var(--success)'}`,
               background: nudge.type === 'warning' ? 'rgba(241, 196, 15, 0.05)' : 'rgba(46, 204, 113, 0.05)'
             }}
           >

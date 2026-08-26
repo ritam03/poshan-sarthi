@@ -14,6 +14,7 @@ It unifies three core capabilities:
 3. **Practical, conversational food awareness**
 
 ## 2. Product Vision & Design Principles
+
 *“A nutrition companion that understands the Indian plate as well as it understands your goal — and changes course with you, not at you.”*
 
 - 🌍 **Culturally Native by Default:** Regional cuisines, festival calendars, and vernacular language are core.
@@ -23,15 +24,39 @@ It unifies three core capabilities:
 - 👩‍⚕️ **Human Safety Net:** Escalates medical anomalies to a certified dietitian.
 - 🔒 **Privacy First:** 100% DPDP Act (2023) compliant.
 
+## 3. Engineering & Design Decisions
+
+### 3.1 Diet Planning Formulas & Engine
+Rather than relying on hallucination-prone Large Language Models for mathematics, PoshanSarthi uses a deterministic **Plan Engine** to calculate nutritional targets.
+
+1. **Basal Metabolic Rate (BMR):** Calculated using the clinically validated **Mifflin-St Jeor Equation**.
+2. **Total Daily Energy Expenditure (TDEE):** Computed as `BMR × Activity Multiplier` (ranging from sedentary to highly active).
+3. **Caloric Targets & Safety Bounds:**
+   - Target = `TDEE ± (Deficit/Surplus)`
+   - **Safety Cap:** The system will mathematically refuse to generate a plan below 1,200 kcal/day for women and 1,500 kcal/day for men without clinical supervision.
+4. **Safe Rate of Change:** Targets are constrained to a safe, sustainable body weight change of **~0.3% to 0.75% per week**.
+5. **Macro Splits:** Adapted for Indian dietary patterns. Carbohydrate bases are higher (rice/roti staples), utilizing proteins from pulses, dairy, eggs, or meat, and fats heavily indexing on local sources like ghee and mustard/coconut oil.
+
+### 3.2 How Diets Are Modified (Adaptive Replanning)
+Most calorie trackers simply log a deviation and output a red "guilt" number. PoshanSarthi uses an **Adaptive Replanning Engine** that treats deviations as a recalculation event.
+
+When a user logs an off-plan or heavy meal, the system compares the actual caloric intake against the planned slot. If the deviation is significant (e.g., eating Chole Bhature on a cut), the agent intercepts and asks how the user wants to adjust:
+- **Strict Deadline Mode:** The agent recalculates a tighter, yet still safe, caloric target for the remaining days of the week to preserve the original milestone date (e.g., "-2kg by Sept 15").
+- **Flexible / Sustainable Mode:** The agent extends the milestone date by a few days to absorb the surplus, allowing the daily caloric limits to remain unchanged.
+
+### 3.3 Multi-Agent Architecture
+The backend is not a single monolithic prompt, but rather an Orchestrator routing to specialist agents:
+- **Diet Planning Agent:** Retrieves structured IFCT (Indian Food Composition Tables) data and orchestrates deterministic plans.
+- **Tracking & Adaptation Agent:** Uses Vision AI to estimate portions and handles behavioral nudges.
+- **Food Awareness Agent:** Uses RAG over a vector database to answer queries ("Is curd at night bad?") safely without medical diagnosing.
+
 ---
 
-## 3. System Architecture & Diagrams
+## 4. System Architecture & Diagrams
 
-PoshanSarthi operates on an **Agentic, Multi-Agent Architecture**. This allows specialized reasoning modules (Diet Planning, Tracking, Food Awareness) to operate independently under a single Orchestrator, ensuring both high accuracy and maintainability.
+### 4.1 High-Level Architecture (HLD)
 
-### 3.1 High-Level Architecture (HLD)
-
-The HLD maps how the client layer interacts with our AI core, which is backed by a robust RAG (Retrieval-Augmented Generation) pipeline over the Indian Food Knowledge Base.
+The HLD maps how the client layer interacts with our AI core, which is backed by a robust RAG pipeline.
 
 ```mermaid
 flowchart TB
@@ -45,7 +70,7 @@ flowchart TB
     GW["API Gateway / BFF (Auth & Rate Limiting)"]
 
     subgraph AGENTS["Agent Orchestration Layer"]
-        Orch["Orchestrator Agent<br/>(Router + Context Memory)"]
+        Orch["Orchestrator Agent (Router + Context Memory)"]
         Diet["Diet Planning Agent"]
         Track["Tracking & Adaptation Agent"]
         Aware["Food Awareness Agent"]
@@ -66,9 +91,9 @@ flowchart TB
     end
 
     subgraph DATA["Data & Knowledge Layer"]
-        KB[("Indian Food KB<br/>IFCT + RAG Index")]
+        KB[("Indian Food KB (IFCT + RAG)")]
         UserDB[("User & Plan Store")]
-        LogDB[("Meal Logs &<br/>Body Metrics")]
+        LogDB[("Meal Logs & Body Metrics")]
     end
 
     subgraph EXT["External Integrations"]
@@ -107,9 +132,7 @@ flowchart TB
     Escalate -.-> Dietitian
 ```
 
-### 3.2 Low-Level Design (LLD): Adaptive Replanning Engine
-
-When a user logs a meal that deviates significantly from the plan, the Adaptive Replanning Engine dynamically offers corrective paths without inducing guilt.
+### 4.2 Low-Level Design (LLD): Adaptive Replanning Engine
 
 ```mermaid
 sequenceDiagram
@@ -120,7 +143,7 @@ sequenceDiagram
     participant Plan as Plan Engine
     participant UI as UI/Notifications
 
-    User->>Orch: Logs Meal (e.g., "2 Bhaturas & Chole")
+    User->>Orch: Logs Meal ("2 Bhaturas & Chole")
     Orch->>Track: Route to Tracking Agent
     Track->>LLM: Parse Meal & Estimate Portions
     LLM-->>Track: Structured Dish & Kcal Data
@@ -143,29 +166,27 @@ sequenceDiagram
     Track-->>Orch: Replanning Complete
 ```
 
-### 3.3 Data Flow & State Management
-
-A look at how user profile data transforms into actionable intelligence.
+### 4.3 Data Flow & State Management
 
 ```mermaid
 flowchart LR
-    A[User Onboarding Inputs<br/>(Age, BMI, Cuisine)] --> P1(Profile & Target Calculator)
-    P1 -->|Calculated Targets<br/>BMR/TDEE| P2(Diet Plan Generator)
-    KB[(Food Knowledge Base)] --> P2
-    P2 -->|Personalized Plan| P4(Plan vs Actual Comparator)
+    A["User Onboarding Inputs (Age, BMI, Cuisine)"] --> P1["Profile & Target Calculator"]
+    P1 -->|Calculated Targets BMR/TDEE| P2["Diet Plan Generator"]
+    KB[("Food Knowledge Base")] --> P2
+    P2 -->|Personalized Plan| P4["Plan vs Actual Comparator"]
     
-    C[Meal Image/Voice/Text] --> P3(Food Recognition & Parsing)
+    C["Meal Image/Voice/Text"] --> P3["Food Recognition & Parsing"]
     P3 -->|Structured Log| P4
     
-    P4 -->|Deviation Gap| P5(Adaptive Replanning Engine)
-    P5 -->|Updated Plan| B[User Dashboard]
+    P4 -->|Deviation Gap| P5["Adaptive Replanning Engine"]
+    P5 -->|Updated Plan| B["User Dashboard"]
     
-    C --> P6(Awareness & Insight Generator)
+    C --> P6["Awareness & Insight Generator"]
     KB --> P6
     P6 -->|Proactive Nudge| B
 ```
 
-### 3.4 Entity Relationship Diagram (ERD)
+### 4.4 Entity Relationship Diagram (ERD)
 
 ```mermaid
 erDiagram
@@ -190,29 +211,23 @@ erDiagram
     NUDGE_EVENT }o--o| ESCALATION_CASE : may_raise
 ```
 
-## 4. Key Demo Features 🚀
+## 5. Key Demo Features 🚀
 
 The provided application demo focuses on an MVP subset of the PoshanSarthi system to showcase the core AI capabilities and UI/UX:
-- **Rich Interactive UI:** Modern glassmorphism, dynamic animations, and vibrant Indian-themed aesthetics using Vite, React, Framer Motion, and Tailwind CSS.
+- **Rich Interactive UI:** Modern glassmorphism, dynamic animations, and vibrant Indian-themed aesthetics using Vite, React, Framer Motion, and Vanilla CSS.
 - **Diet Plan Visualization:** View an AI-generated daily diet plan adapted for Indian food preferences (Thali style).
-- **Conversational Awareness:** An integrated AI Chatbot replicating the "Food Awareness Agent" to answer questions like "Is it safe to eat rice at night?"
-- **Meal Logging Simulator:** Demo flow showing how a user can log an off-plan meal and receive adaptive replanning choices.
-
-## 5. Technology Stack (Demo vs Prod)
-
-| Layer | Production Vision | Minimal Demo (Provided) |
-|---|---|---|
-| **Frontend** | React Native, WhatsApp API, Web | React, Vite, Framer Motion, Vanilla CSS (Glassmorphism) |
-| **Backend** | Microservices, Python/Go | Simulated API within React |
-| **AI Models** | Gemini 3.1 Pro + Vision + Audio | Simulated AI Responses / Client-side Gemini Integration |
-| **Database** | PostgreSQL + Pinecone (Vector) | Local State (Zustand/React Context) |
+- **Conversational Awareness:** An integrated AI Chatbot replicating the "Food Awareness Agent" to answer questions like "Is it safe to eat rice at night?" (Powered by Gemini AI).
+- **Meal Logging Simulator:** Demo flow showing how a user can log an off-plan meal (e.g. "Chole Bhature") and receive adaptive replanning choices seamlessly without feeling judged.
 
 ## 6. How to Run the Demo
 
 1. Clone the repository: `git clone https://github.com/ritam03/poshan-sarthi.git`
 2. Navigate to the project directory.
 3. Install dependencies: `npm install`
-4. Run the development server: `npm run dev`
+4. Set up your environment variables:
+   Create a `.env.local` file and add your Gemini API Key:
+   `VITE_GEMINI_API_KEY="your_api_key_here"`
+5. Run the development server: `npm run dev`
 
 ---
 *Built for the future of Indian Nutrition.* 🇮🇳
