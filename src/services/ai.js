@@ -81,13 +81,13 @@ Return ONLY a valid JSON object in this format (no markdown tags):
   }
 };
 
-export const generateDietPlan = async (profile) => {
+export const generateDietPlan = async (profile, targetCalories) => {
   const prompt = `Generate a 1-day personalized Indian diet plan for the following profile:
-Gender: ${profile.gender}, Age: ${profile.age}, Weight: ${profile.weight}kg, Height: ${profile.height}cm, Activity: ${profile.activity}, Goal: ${profile.goal}.
+Gender: ${profile.gender}, Age: ${profile.age}, Cuisine: ${profile.cuisine}, Medical: ${profile.medical}.
+The deterministic target calories are ${targetCalories} kcal. 
+Compose meals that hit this caloric target closely.
 Return ONLY a valid JSON object in this format (no markdown tags):
 {
-  "tdee": number,
-  "targetCalories": number,
   "plan": [
     { "meal": "Breakfast", "time": "8:30 AM", "items": "...", "calories": number },
     { "meal": "Lunch", "time": "1:30 PM", "items": "...", "calories": number },

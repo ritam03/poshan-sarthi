@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+docs/
+models.json
+test_models.mjs
+read_docx.py
+doc_content.txt
