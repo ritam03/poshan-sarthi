@@ -1,8 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Target, Activity, Utensils, Droplet } from 'lucide-react';
+import { Target, Activity, Utensils, Droplet, Loader2 } from 'lucide-react';
+import { useAppContext } from '../context/AppContext';
 
 const Dashboard = () => {
+  const { dietPlan, loadingPlan, dailyIntake, milestoneOffset, targetCaloriesOffset } = useAppContext();
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: { 
@@ -15,6 +18,29 @@ const Dashboard = () => {
     hidden: { y: 20, opacity: 0 },
     visible: { y: 0, opacity: 1 }
   };
+
+  if (loadingPlan || !dietPlan) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: '20px' }}>
+        <Loader2 size={40} className="animate-spin" color="var(--primary-color)" />
+        <p style={{ color: 'var(--text-secondary)' }}>PoshanSarthi is designing your optimal thali...</p>
+      </div>
+    );
+  }
+
+  // Calculate dynamic targets
+  const targetCals = dietPlan.targetCalories + targetCaloriesOffset;
+  const calPercent = Math.min(100, Math.round((dailyIntake.calories / targetCals) * 100)) || 0;
+  
+  // Calculate dynamic milestone date
+  const baseDate = new Date('2026-09-15');
+  baseDate.setDate(baseDate.getDate() + milestoneOffset);
+  const formattedDate = baseDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+  // Roughly estimate protein, carbs, fats targets based on typical Indian macro splits (20% P, 50% C, 30% F)
+  const targetProtein = Math.round((targetCals * 0.20) / 4);
+  const targetCarbs = Math.round((targetCals * 0.50) / 4);
+  const targetFats = Math.round((targetCals * 0.30) / 9);
 
   return (
     <motion.div 
@@ -32,13 +58,15 @@ const Dashboard = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '10px' }}>
             <div>
               <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Calories</p>
-              <h2 style={{ fontSize: '36px', fontWeight: '700' }}>1,850 <span style={{ fontSize: '16px', color: 'var(--text-secondary)' }}>/ 2,200 kcal</span></h2>
+              <h2 style={{ fontSize: '36px', fontWeight: '700' }}>
+                {dailyIntake.calories} <span style={{ fontSize: '16px', color: 'var(--text-secondary)' }}>/ {targetCals} kcal</span>
+              </h2>
             </div>
             <div style={{ width: '120px', height: '10px', background: 'rgba(255,255,255,0.1)', borderRadius: '5px', overflow: 'hidden' }}>
               <motion.div 
                 style={{ height: '100%', background: 'var(--primary-color)', borderRadius: '5px' }}
                 initial={{ width: 0 }}
-                animate={{ width: '84%' }}
+                animate={{ width: `${calPercent}%` }}
                 transition={{ duration: 1, ease: 'easeOut' }}
               />
             </div>
@@ -47,18 +75,24 @@ const Dashboard = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginTop: '20px' }}>
             <div style={{ padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
               <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Protein</p>
-              <p style={{ fontSize: '18px', fontWeight: '600' }}>65g <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>/ 80g</span></p>
-              <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', marginTop: '8px', borderRadius: '2px' }}><div style={{ width: '80%', height: '100%', background: '#3498db' }}></div></div>
+              <p style={{ fontSize: '18px', fontWeight: '600' }}>{dailyIntake.protein}g <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>/ {targetProtein}g</span></p>
+              <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', marginTop: '8px', borderRadius: '2px' }}>
+                <div style={{ width: `${Math.min(100, (dailyIntake.protein / targetProtein) * 100)}%`, height: '100%', background: '#3498db' }}></div>
+              </div>
             </div>
             <div style={{ padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
               <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Carbs</p>
-              <p style={{ fontSize: '18px', fontWeight: '600' }}>210g <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>/ 250g</span></p>
-              <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', marginTop: '8px', borderRadius: '2px' }}><div style={{ width: '84%', height: '100%', background: '#e67e22' }}></div></div>
+              <p style={{ fontSize: '18px', fontWeight: '600' }}>{dailyIntake.carbs}g <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>/ {targetCarbs}g</span></p>
+              <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', marginTop: '8px', borderRadius: '2px' }}>
+                <div style={{ width: `${Math.min(100, (dailyIntake.carbs / targetCarbs) * 100)}%`, height: '100%', background: '#e67e22' }}></div>
+              </div>
             </div>
             <div style={{ padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
               <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Fats</p>
-              <p style={{ fontSize: '18px', fontWeight: '600' }}>45g <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>/ 55g</span></p>
-              <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', marginTop: '8px', borderRadius: '2px' }}><div style={{ width: '81%', height: '100%', background: '#9b59b6' }}></div></div>
+              <p style={{ fontSize: '18px', fontWeight: '600' }}>{dailyIntake.fats}g <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>/ {targetFats}g</span></p>
+              <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', marginTop: '8px', borderRadius: '2px' }}>
+                <div style={{ width: `${Math.min(100, (dailyIntake.fats / targetFats) * 100)}%`, height: '100%', background: '#9b59b6' }}></div>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -66,30 +100,18 @@ const Dashboard = () => {
         <motion.div className="card glass-panel" variants={itemVariants}>
           <div className="card-title">
             <Utensils size={24} color="var(--secondary-color)" />
-            Today's Thali Plan
+            AI Recommended Thali Plan
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
-            <div className="meal-item">
-              <div className="meal-info">
-                <h4>Breakfast (8:30 AM)</h4>
-                <p>2 Poha Katoris, 1 Cup Chai (No Sugar)</p>
+            {dietPlan.plan && dietPlan.plan.map((slot, index) => (
+              <div key={index} className="meal-item" style={{ borderLeft: index === 0 ? '3px solid var(--primary-color)' : 'none' }}>
+                <div className="meal-info">
+                  <h4>{slot.meal} ({slot.time})</h4>
+                  <p>{slot.items}</p>
+                  <p style={{ color: 'var(--primary-color)', marginTop: '4px', fontSize: '12px', fontWeight: 'bold' }}>~{slot.calories} kcal</p>
+                </div>
               </div>
-              <span style={{ color: 'var(--success)', fontWeight: '500', fontSize: '14px' }}>Logged</span>
-            </div>
-            <div className="meal-item">
-              <div className="meal-info">
-                <h4>Lunch (1:00 PM)</h4>
-                <p>2 Rotis, 1 Katori Dal Makhani, 1 Katori Mixed Veg</p>
-              </div>
-              <span style={{ color: 'var(--success)', fontWeight: '500', fontSize: '14px' }}>Logged</span>
-            </div>
-            <div className="meal-item" style={{ borderLeft: '3px solid var(--primary-color)' }}>
-              <div className="meal-info">
-                <h4>Dinner (8:00 PM)</h4>
-                <p>1 Katori Brown Rice, 2 Katori Moong Dal, Salad</p>
-              </div>
-              <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Pending</span>
-            </div>
+            ))}
           </div>
         </motion.div>
       </div>
@@ -104,8 +126,10 @@ const Dashboard = () => {
             <div style={{ width: '120px', height: '120px', borderRadius: '50%', border: '8px solid rgba(46,204,113,0.3)', borderTopColor: 'var(--success)', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 'bold' }}>
               68%
             </div>
-            <p style={{ marginTop: '15px', fontWeight: '500' }}>Goal: -2 kg by 15 Sept</p>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '5px' }}>You are on a sustainable path.</p>
+            <p style={{ marginTop: '15px', fontWeight: '500' }}>Goal: -2 kg by {formattedDate}</p>
+            {milestoneOffset > 0 && <p style={{ fontSize: '13px', color: 'var(--warning)', marginTop: '5px' }}>Milestone extended by {milestoneOffset} days.</p>}
+            {targetCaloriesOffset < 0 && <p style={{ fontSize: '13px', color: 'var(--warning)', marginTop: '5px' }}>Daily limits tightened by {-targetCaloriesOffset} kcal.</p>}
+            {milestoneOffset === 0 && targetCaloriesOffset === 0 && <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '5px' }}>You are on a sustainable path.</p>}
           </div>
         </motion.div>
         

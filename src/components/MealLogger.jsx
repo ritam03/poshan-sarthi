@@ -1,26 +1,32 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, Mic, Type, AlertTriangle, CheckCircle, ArrowRight } from 'lucide-react';
+import { useAppContext } from '../context/AppContext';
+import { parseMealLog } from '../services/ai';
 
 const MealLogger = () => {
   const [mealInput, setMealInput] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [nudge, setNudge] = useState(null);
+  
+  const { addMealToLog, applyReplanning, targetCaloriesOffset } = useAppContext();
 
-  const handleLog = () => {
+  const handleLog = async () => {
     if (!mealInput) return;
     setAnalyzing(true);
+    setNudge(null);
     
-    // Simulate AI parsing and deviation engine
-    setTimeout(() => {
-      setAnalyzing(false);
-      const text = mealInput.toLowerCase();
+    try {
+      const mealData = await parseMealLog(mealInput);
       
-      if (text.includes('bhatura') || text.includes('pizza') || text.includes('sweet') || text.includes('cola')) {
+      // We will record the meal regardless of if it's a deviation
+      addMealToLog(mealData);
+
+      if (mealData.isSignificantDeviation) {
         setNudge({
           type: 'warning',
           title: 'Significant Deviation Detected',
-          message: 'This meal puts you 450 kcal over your target for the day. How would you like to proceed?',
+          message: `This meal (approx ${mealData.calories} kcal) is quite heavy or highly processed. It pushes you over the optimal daily limit. How would you like to proceed?`,
           options: [
             { id: 'strict', label: 'Strict Correction', desc: 'Reduce tomorrow\'s calories to stay on the exact same milestone date.' },
             { id: 'flexible', label: 'Sustainable Extension', desc: 'Keep daily limits the same and push the goal date back by 2 days.' }
@@ -30,14 +36,24 @@ const MealLogger = () => {
         setNudge({
           type: 'success',
           title: 'Meal Logged Successfully',
-          message: 'Great choice! This perfectly fits your macro targets for the day.',
+          message: `Logged ${mealData.calories} kcal. Great choice! This perfectly fits your targets.`,
           options: []
         });
       }
-    }, 1500);
+    } catch (err) {
+      setNudge({
+        type: 'warning',
+        title: 'Error Logging Meal',
+        message: 'Could not parse the meal properly. Please try again.',
+        options: []
+      });
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
-  const handleOptionSelect = () => {
+  const handleOptionSelect = (mode) => {
+    applyReplanning(mode);
     setNudge(null);
     setMealInput('');
   };
@@ -52,12 +68,12 @@ const MealLogger = () => {
       <div className="card glass-panel">
         <h2 style={{ marginBottom: '20px', fontWeight: '600' }}>Log a Meal</h2>
         
-        <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
-          <button className="glass-button secondary" style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: '10px' }}>
-            <Camera size={20} /> Snap Photo
+        <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', opacity: 0.5 }}>
+          <button className="glass-button secondary" disabled style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: '10px', cursor: 'not-allowed' }}>
+            <Camera size={20} /> Snap Photo (Demo excluded)
           </button>
-          <button className="glass-button secondary" style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: '10px' }}>
-            <Mic size={20} /> Voice Note
+          <button className="glass-button secondary" disabled style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: '10px', cursor: 'not-allowed' }}>
+            <Mic size={20} /> Voice Note (Demo excluded)
           </button>
         </div>
 
@@ -71,6 +87,7 @@ const MealLogger = () => {
               placeholder="E.g. 2 Chole Bhature and a Diet Coke" 
               value={mealInput}
               onChange={(e) => setMealInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleLog()}
             />
           </div>
           <button className="glass-button" onClick={handleLog} disabled={analyzing}>
@@ -104,7 +121,7 @@ const MealLogger = () => {
                     key={opt.id}
                     className="glass-button secondary" 
                     style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left', padding: '15px' }}
-                    onClick={handleOptionSelect}
+                    onClick={() => handleOptionSelect(opt.id)}
                   >
                     <div>
                       <div style={{ fontWeight: '600', color: 'white', marginBottom: '4px' }}>{opt.label}</div>

@@ -1,16 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Send, Bot, User } from 'lucide-react';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-// Initialize Gemini
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
-const genAI = new GoogleGenerativeAI(API_KEY);
-
-const SYSTEM_PROMPT = `You are PoshanSarthi, a friendly AI nutrition agent purpose-built for the Indian subcontinent. 
-You understand Indian cuisines, thalis, rotis, katoris, and local food habits. 
-Answer questions related to food, diet, and health. Keep answers short, actionable, and culturally relevant. 
-If asked medical questions, add a disclaimer to consult a doctor.`;
+import { chatAgent } from '../services/ai';
 
 const Chatbot = () => {
   const [messages, setMessages] = useState([
@@ -32,21 +23,15 @@ const Chatbot = () => {
     if (!input.trim()) return;
 
     const userMessage = input.trim();
+    // Exclude the first introductory message from history if we want to save tokens, but it's fine.
+    const history = [...messages]; 
+    
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setInput('');
     setLoading(true);
 
     try {
-      // Use cascading models as requested if one fails (simulation of strategy)
-      let model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      
-      const chat = model.startChat({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      });
-
-      const result = await chat.sendMessage(userMessage);
-      const responseText = result.response.text();
-      
+      const responseText = await chatAgent(history, userMessage);
       setMessages(prev => [...prev, { role: 'bot', content: responseText }]);
     } catch (error) {
       console.error(error);
