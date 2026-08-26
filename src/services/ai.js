@@ -6,7 +6,7 @@ const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || keyParts.join('');
 
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-const MODELS = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro'];
+const MODELS = ['gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.1-pro-preview'];
 
 /**
  * Helper to run a prompt through cascading models.
